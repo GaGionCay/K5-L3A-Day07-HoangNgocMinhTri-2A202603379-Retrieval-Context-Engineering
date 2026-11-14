@@ -1,8 +1,4 @@
-"""Example agent loop; connect a real model and the Day 6 retriever via adapters.
-
-Adapters are intentionally not provided: Day 6 has no fixed database schema and
-model providers differ. Never use fake adapters to report benchmark quality.
-"""
+"""Agent loop optimized with 3 Retrieval methods (Dense, Sparse, Hybrid/RRF) and Fixed Context Budget."""
 from typing import Any, Protocol
 import json
 import re
@@ -10,49 +6,64 @@ from pathlib import Path
 import chromadb
 from google import genai
 from .baseline import pack_context
+import math
+from collections import Counter
 
 
 class Controller(Protocol):
     def decide(self, question: str, history: list[dict[str, Any]]) -> dict[str, Any]:
-        """Call a real model with a search tool; return normalized action.
-
-        Search: {'action': 'search', 'query': '...'}.
-        Final: {'action': 'answer', 'answer': '...', 'citations': ['chunk-id']}.
-        Citations must also appear as [chunk-id] in the answer text.
-        """
+        """Call a real model with a search tool; return normalized action."""
         ...
 
 
 class Retriever(Protocol):
     def search(self, query: str, *, filters: dict[str, Any] | None, top_k: int) -> list[dict[str, Any]]:
-        """Query the real Day 6 vector store with a compatible query embedding.
-
-        Return each chunk's id, text, source_id, source, page, metadata and score.
-        The query embedding model and dimension must match the document index.
-        """
+        """Query the vector store or corpus."""
         ...
 
 
-class ChromaRetriever:
-    """Adapter thực tế kết nối ChromaDB Vector Store (từ Task 2.1)."""
-    def __init__(self, chroma_path: str = "./chroma_db", collection_name: str = "day7_corpus"):
+class HybridRetriever:
+    """Task 4.1: Tích hợp 3 phương pháp Retrieval (Sparse, Dense, Hybrid RRF)."""
+    def __init__(self, chroma_path: str = "./chroma_db", collection_name: str = "day7_corpus", method: str = "hybrid"):
+        self.method = method  # "sparse", "dense", hoặc "hybrid"
         self.client = chromadb.PersistentClient(path=chroma_path)
         try:
             self.collection = self.client.get_collection(name=collection_name)
         except Exception:
             self.collection = None
 
-    def search(self, query: str, *, filters: dict[str, Any] | None = None, top_k: int = 3) -> list[dict[str, Any]]:
+    def _sparse_search(self, query: str, top_k: int) -> list[dict[str, Any]]:
+        """Sparse Retrieval dự phòng bằng từ khóa trên collection."""
         if not self.collection:
             return []
+        all_data = self.collection.get()
+        if not all_data or not all_data.get("ids"):
+            return []
         
-        where_clause = filters if filters else None
-        results = self.collection.query(
-            query_texts=[query],
-            n_results=top_k,
-            where=where_clause
-        )
+        ids = all_data["ids"]
+        docs = all_data["documents"]
+        metas = all_data["metadatas"]
         
+        query_tokens = set(query.lower().split())
+        scored = []
+        for cid, doc, meta in zip(ids, docs, metas):
+            doc_tokens = doc.lower().split()
+            doc_counter = Counter(doc_tokens)
+            score = sum(doc_counter[token] for token in query_tokens)
+            if score > 0:
+                scored.append({
+                    "id": cid, "text": doc, "source_id": meta.get("source_id"),
+                    "source": meta.get("source"), "page": meta.get("page", 1),
+                    "metadata": meta, "score": float(score)
+                })
+        scored.sort(key=lambda x: x["score"], reverse=True)
+        return scored[:top_k]
+
+    def _dense_search(self, query: str, filters: dict[str, Any] | None, top_k: int) -> list[dict[str, Any]]:
+        """Dense Retrieval trực tiếp từ ChromaDB."""
+        if not self.collection:
+            return []
+        results = self.collection.query(query_texts=[query], n_results=top_k, where=filters)
         formatted = []
         if results and results["ids"] and results["ids"][0]:
             ids = results["ids"][0]
@@ -72,9 +83,43 @@ class ChromaRetriever:
                 })
         return formatted
 
+    def search(self, query: str, *, filters: dict[str, Any] | None = None, top_k: int = 3) -> list[dict[str, Any]]:
+        if self.method == "sparse":
+            return self._sparse_search(query, top_k=top_k)
+            
+        elif self.method == "dense":
+            return self._dense_search(query, filters=filters, top_k=top_k)
+
+        else:
+            # Method 3: Hybrid Retrieval kết hợp Sparse + Dense dùng RRF (Tránh đệ quy vô hạn)
+            sparse_res = self._sparse_search(query, top_k=top_k)
+            dense_res = self._dense_search(query, filters=filters, top_k=top_k)
+            
+            rrf_scores = {}
+            chunk_map = {}
+            k_constant = 60  # Hằng số chuẩn cho RRF
+
+            for rank, chunk in enumerate(sparse_res):
+                cid = chunk["id"]
+                chunk_map[cid] = chunk
+                rrf_scores[cid] = rrf_scores.get(cid, 0.0) + 1.0 / (k_constant + rank + 1)
+
+            for rank, chunk in enumerate(dense_res):
+                cid = chunk["id"]
+                chunk_map[cid] = chunk
+                rrf_scores[cid] = rrf_scores.get(cid, 0.0) + 1.0 / (k_constant + rank + 1)
+
+            sorted_cids = sorted(rrf_scores.keys(), key=lambda x: rrf_scores[x], reverse=True)
+            hybrid_results = []
+            for cid in sorted_cids[:top_k]:
+                item = chunk_map[cid]
+                item["score"] = rrf_scores[cid]
+                hybrid_results.append(item)
+            return hybrid_results
+
 
 class GeminiController:
-    """Adapter thực tế dùng Google Gemini điều khiển ReAct agent (bắt buộc search trước, answer sau)."""
+    """Adapter thực tế dùng Google Gemini điều khiển ReAct agent."""
     def __init__(self, model_name: str = "gemini-3.5-flash"):
         self.client = genai.Client()
         self.model_name = model_name
@@ -122,7 +167,6 @@ class GeminiController:
 
         prompt = f"Question: {question}\n\n{history_str}\nProvide the final answer in JSON format:"
 
-        # BỎ TRY-EXCEPT TẠM THỜI ĐỂ DEBUG LỖI THỰC TẾ TỪ GEMINI
         response = self.client.models.generate_content(
             model=self.model_name,
             contents=prompt,
@@ -133,7 +177,6 @@ class GeminiController:
             }
         )
         text = response.text.strip()
-        print(f"\n[DEBUG GEMINI RAW OUTPUT]:\n{text}\n")
         
         parsed = json.loads(text)
         if not isinstance(parsed, dict) or not isinstance(parsed.get("answer"), str):
@@ -146,60 +189,76 @@ class GeminiController:
         citations = list(dict.fromkeys(cited_ids))
         return {"action": "answer", "answer": answer, "citations": citations}
 
+
 def run_agent(question: str, controller: Controller, retriever: Retriever, *,
               filters: dict[str, Any] | None = None, max_searches: int = 4,
               top_k: int = 3, budget: int = 1500) -> dict[str, Any]:
-    """Return answer, citation IDs and trace; no benchmark gold enters this loop.
-
-    A final answer without valid citations, an empty context, and a search limit
-    lead to abstention. This only checks citation IDs, not semantic grounding.
-    Provider/retriever errors propagate; no silent mock fallback.
-    """
+    """Task 4.2: Khắc phục Technical Debt về Context Budget bằng Deduplication và Re-ranking toàn cục."""
     if not question.strip() or max_searches < 1 or top_k < 1 or budget < 1:
         raise ValueError('question, max_searches, top_k hoặc budget không hợp lệ')
+    
     history: list[dict[str, Any]] = []
-    chunks: dict[str, dict[str, Any]] = {}
-    candidates: list[dict[str, Any]] = []
+    all_candidates: dict[str, dict[str, Any]] = {}  # Khử trùng lặp theo chunk['id'] qua các vòng tìm kiếm
     events: list[dict[str, Any]] = []
+
     for _ in range(max_searches + 1):
         action = controller.decide(question, history)
         if action.get('action') == 'search':
             if sum(e['event'] == 'search' for e in events) >= max_searches:
                 return {'status': 'abstain', 'answer': 'Không đủ bằng chứng để trả lời.', 'citations': [], 'events': events + [{'event': 'search_limit'}]}
+            
             query = action.get('query')
             if not isinstance(query, str) or not query.strip():
                 raise ValueError('search query phải là chuỗi không rỗng')
+            
             results = retriever.search(query, filters=filters, top_k=top_k)
-            if len(results) > top_k or len({r['id'] for r in results}) != len(results):
-                raise ValueError('retriever phải trả tối đa top_k chunk ID duy nhất')
-            candidates.extend(results)
-            context, ids = pack_context(candidates, budget=budget)
-            chunks = {c['id']: c for c in candidates if c['id'] in ids}
-            events.append({'event': 'search', 'query': query, 'filter': filters, 'results': results,
-                           'context': context, 'context_ids': ids})
-            history = [{'tool': 'search', 'queries': [e['query'] for e in events if e['event'] == 'search'],
-                        'context': context, 'context_ids': ids}]
+            
+            # Global Deduplication & Score Update
+            for r in results:
+                cid = r['id']
+                if cid not in all_candidates or r.get('score', 0) > all_candidates[cid].get('score', 0):
+                    all_candidates[cid] = r
+
+            # Global Re-ranking dựa trên score giảm dần trước khi đóng gói budget
+            ranked_candidates = sorted(all_candidates.values(), key=lambda x: x.get('score', 0), reverse=True)
+            
+            context, ids = pack_context(ranked_candidates, budget=budget)
+            
+            events.append({
+                'event': 'search', 'query': query, 'filter': filters, 'results': results,
+                'context': context, 'context_ids': ids
+            })
+            history = [{
+                'tool': 'search', 
+                'queries': [e['query'] for e in events if e['event'] == 'search'],
+                'context': context, 
+                'context_ids': ids
+            }]
+            
         elif action.get('action') == 'answer':
             answer, citations = action.get('answer'), action.get('citations')
             if not isinstance(answer, str) or not isinstance(citations, list) or any(not isinstance(i, str) for i in citations):
                 raise ValueError('answer/citations không hợp lệ')
-            valid = bool(answer.strip() and citations and all(i in chunks and f'[{i}]' in answer for i in citations))
+            
+            current_context_ids = history[-1].get('context_ids', []) if history else []
+            valid = bool(answer.strip() and citations and all(i in current_context_ids and f'[{i}]' in answer for i in citations))
+            
             if valid:
                 return {'status': 'answered', 'answer': answer, 'citations': citations, 'events': events + [{'event': 'answer'}]}
             return {'status': 'abstain', 'answer': 'Không đủ bằng chứng để trả lời.', 'citations': [], 'events': events + [{'event': 'invalid_or_missing_citations'}]}
         else:
             raise ValueError('action phải là search hoặc answer')
+            
     return {'status': 'abstain', 'answer': 'Không đủ bằng chứng để trả lời.', 'citations': [], 'events': events}
 
 
 if __name__ == '__main__':
-    # Kiểm thử nhanh Agent trực tiếp
-    retriever = ChromaRetriever()
+    retriever = HybridRetriever(method="hybrid")
     controller = GeminiController()
     
     test_question = "Tiêu chuẩn thiết kế kiến trúc hệ thống phân tán là gì?"
-    print(f"Đang chạy kiểm thử với câu hỏi: '{test_question}'\n")
+    print(f"Đang chạy kiểm thử với câu hỏi: '{test_question}' (Hybrid Method)\n")
     
-    result = run_agent(test_question, controller, retriever, top_k=6, budget=4000)
+    result = run_agent(test_question, controller, retriever, top_k=4, budget=4000)
     print("--- KẾT QUẢ AGENT ---")
     print(json.dumps(result, ensure_ascii=False, indent=2))

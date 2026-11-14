@@ -1,0 +1,150 @@
+[
+  {
+    "id": "test_01",
+    "question": "Mô hình Caching nào được áp dụng cho dữ liệu đọc nhiều và làm sao để tránh Cache Stampede?",
+    "type": "answerable",
+    "hop_type": "single-hop",
+    "gold_chunk_ids": [
+      "doc_01_chunk_1"
+    ],
+    "gold_answer": "Áp dụng mô hình Cache-Aside kết hợp Redis Cluster cho dữ liệu đọc nhiều và đặt TTL ngẫu nhiên để tránh Cache Stampede."
+  },
+  {
+    "id": "test_02",
+    "question": "Công nghệ nào được sử dụng làm xương sống cho các luồng sự kiện có thông lượng cao?",
+    "type": "answerable",
+    "hop_type": "single-hop",
+    "gold_chunk_ids": [
+      "doc_01_chunk_1"
+    ],
+    "gold_answer": "Apache Kafka được sử dụng làm xương sống cho các luồng sự kiện có thông lượng cao và yêu cầu lưu trữ log bền vững."
+  },
+  {
+    "id": "test_03",
+    "question": "Phương thức xác thực đa yếu tố (MFA) nào được yêu cầu cho các tài khoản truy cập hạ tầng?",
+    "type": "answerable",
+    "hop_type": "single-hop",
+    "gold_chunk_ids": [
+      "doc_02_chunk_0"
+    ],
+    "gold_answer": "Xác thực đa yếu tố (MFA) bằng ứng dụng Authenticator hoặc khóa vật lý FIDO2 là bắt buộc 100% đối với mọi tài khoản truy cập hạ tầng."
+  },
+  {
+    "id": "test_04",
+    "question": "Chu kỳ xoay vòng tự động đối với API key và database credentials trên môi trường Production là bao lâu?",
+    "type": "answerable",
+    "hop_type": "single-hop",
+    "gold_chunk_ids": [
+      "doc_02_chunk_1"
+    ],
+    "gold_answer": "Tất cả API key, database credentials và khóa mã hóa trên Production phải được xoay vòng tự động mỗi 90 ngày."
+  },
+  {
+    "id": "test_05",
+    "question": "Thời hạn tối đa để báo cáo sự cố rò rỉ dữ liệu mức độ P1 cho đội ngũ InfoSec là bao lâu?",
+    "type": "answerable",
+    "hop_type": "single-hop",
+    "gold_chunk_ids": [
+      "doc_02_chunk_1"
+    ],
+    "gold_answer": "Mọi sự cố rò rỉ dữ liệu mức độ P1 phải được báo cáo cho đội ngũ InfoSec trong vòng 30 phút kể từ khi phát hiện."
+  },
+  {
+    "id": "test_06",
+    "question": "Nhân viên chính thức có bao nhiêu ngày phép năm và được chuyển tối đa bao nhiêu ngày sang năm sau?",
+    "type": "answerable",
+    "hop_type": "single-hop",
+    "gold_chunk_ids": [
+      "doc_03_chunk_0"
+    ],
+    "gold_answer": "Nhân viên chính thức có 14 ngày phép năm, tối đa 5 ngày phép chưa dùng được chuyển sang quý I năm kế tiếp."
+  },
+  {
+    "id": "test_07",
+    "question": "Đánh giá hiệu suất chính thức được tổ chức mấy lần mỗi năm và vào những tháng nào?",
+    "type": "answerable",
+    "hop_type": "single-hop",
+    "gold_chunk_ids": [
+      "doc_03_chunk_1"
+    ],
+    "gold_answer": "Đánh giá hiệu suất chính thức được tổ chức 2 lần mỗi năm vào tháng 6 (Mid-year) và tháng 12 (Year-end)."
+  },
+  {
+    "id": "test_08",
+    "question": "Nguyên tắc cấp quyền truy cập trong chính sách bảo mật được quy định như thế nào?",
+    "type": "answerable",
+    "hop_type": "single-hop",
+    "gold_chunk_ids": [
+      "doc_02_chunk_0",
+      "doc_02_chunk_1"
+    ],
+    "gold_answer": "Áp dụng nguyên tắc đặc quyền tối thiểu (Least Privilege), quyền truy cập được cấp theo nhóm vai trò thay vì từng cá nhân."
+  },
+  {
+    "id": "test_09",
+    "question": "Tài liệu hướng dẫn kiến trúc hệ thống quy định các tiêu chuẩn gì về giao tiếp giữa các Microservices và định dạng API?",
+    "type": "answerable",
+    "hop_type": "multi-hop",
+    "gold_chunk_ids": [
+      "doc_01_chunk_0"
+    ],
+    "gold_answer": "Các Microservices giao tiếp bất đồng bộ qua message broker và sử dụng URI versioning theo định dạng /api/v1/resources với danh từ số nhiều viết thường cách nhau bằng dấu gạch ngang."
+  },
+  {
+    "id": "test_10",
+    "question": "Chính sách bảo mật quy định những biện pháp kiểm soát truy cập và xác thực nào đối với hạ tầng và phiên đăng nhập?",
+    "type": "answerable",
+    "hop_type": "multi-hop",
+    "gold_chunk_ids": [
+      "doc_02_chunk_0",
+      "doc_02_chunk_1"
+    ],
+    "gold_answer": "Bắt buộc 100% MFA (Authenticator hoặc FIDO2) khi truy cập hạ tầng, cấp quyền theo nhóm vai trò theo nguyên tắc đặc quyền tối thiểu, và dùng Access Token 15 phút cùng Refresh Token 7 ngày có xoay vòng."
+  },
+  {
+    "id": "test_11",
+    "question": "Tổng hợp các quy định về chế độ ngày nghỉ phép năm và lịch làm việc tại văn phòng của nhân viên chính thức?",
+    "type": "answerable",
+    "hop_type": "multi-hop",
+    "gold_chunk_ids": [
+      "doc_03_chunk_0",
+      "doc_03_chunk_1"
+    ],
+    "gold_answer": "Nhân viên chính thức có 14 ngày phép năm (tối đa 5 ngày chuyển sang quý I năm sau) và làm việc theo mô hình Hybrid tối thiểu 3 ngày/tuần tại văn phòng vào thứ Ba, thứ Tư và thứ Năm."
+  },
+  {
+    "id": "test_12",
+    "question": "Bên cạnh việc đào tạo An toàn thông tin cho nhân viên mới, công ty quy định thời gian báo cáo sự cố rò rỉ dữ liệu P1 như thế nào?",
+    "type": "answerable",
+    "hop_type": "multi-hop",
+    "gold_chunk_ids": [
+      "doc_03_chunk_0",
+      "doc_02_chunk_1"
+    ],
+    "gold_answer": "Ngoài khóa đào tạo An toàn thông tin cơ bản trong tuần đầu, mọi sự cố rò rỉ dữ liệu mức độ P1 phải được báo cáo cho đội ngũ InfoSec trong vòng 30 phút kể từ khi phát hiện."
+  },
+  {
+    "id": "test_unans_01",
+    "question": "Mức thưởng tháng lương thứ 13 và thưởng hiệu suất cuối năm được tính theo công thức nào?",
+    "type": "unanswerable",
+    "hop_type": "none",
+    "gold_chunk_ids": [],
+    "gold_answer": "Không đủ bằng chứng để trả lời."
+  },
+  {
+    "id": "test_unans_02",
+    "question": "Chính sách sao lưu dữ liệu (Backup & Disaster Recovery) quy định RPO và RTO của hệ thống là bao nhiêu?",
+    "type": "unanswerable",
+    "hop_type": "none",
+    "gold_chunk_ids": [],
+    "gold_answer": "Không đủ bằng chứng để trả lời."
+  },
+  {
+    "id": "test_unans_03",
+    "question": "Ngân sách chi trả cho chứng chỉ AWS hoặc GCP quốc tế của nhân viên kỹ thuật có nằm ngoài gói 10 triệu đồng không?",
+    "type": "unanswerable",
+    "hop_type": "none",
+    "gold_chunk_ids": [],
+    "gold_answer": "Không đủ bằng chứng để trả lời."
+  }
+]
