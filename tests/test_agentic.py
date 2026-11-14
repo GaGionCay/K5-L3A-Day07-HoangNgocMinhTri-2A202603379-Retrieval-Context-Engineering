@@ -2,8 +2,10 @@
 import sys
 import unittest
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'starter'))
-from agentic import run_agent
+from types import SimpleNamespace
+from unittest.mock import Mock
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from starter.agentic import GeminiController, run_agent
 
 CHUNK = {'id': 'c1', 'text': 'Hoàn tiền trong 7 ngày.', 'source_id': 'doc',
          'source': 'doc.pdf', 'page': 1, 'score': 0.8, 'metadata': {}}
@@ -18,6 +20,40 @@ class Retriever:
         self.calls.append((query, filters, top_k)); return self.results
 
 class AgentTests(unittest.TestCase):
+    def test_gemini_controller_normalizes_citations_to_context_ids(self):
+        response = SimpleNamespace(text='{"action":"answer","answer":"Refunds are available within 7 days [doc_01_chunk_0]. The refund request must include a receipt [doc_01_chunk_1].","citations":["[doc_01_chunk_0]","[doc_01_chunk_1]"]}')
+        generate_content = Mock(return_value=response)
+        controller = GeminiController.__new__(GeminiController)
+        controller.client = SimpleNamespace(models=SimpleNamespace(generate_content=generate_content))
+        controller.model_name = 'test-model'
+
+        chunks = [
+            {**CHUNK, 'id': 'doc_01_chunk_0'},
+            {**CHUNK, 'id': 'doc_01_chunk_1', 'text': 'Cần có hóa đơn để yêu cầu hoàn tiền.'}
+        ]
+        result = run_agent('When can I get a refund?', controller, Retriever(chunks))
+
+        self.assertEqual(result['status'], 'answered')
+        self.assertEqual(result['citations'], ['doc_01_chunk_0', 'doc_01_chunk_1'])
+        self.assertIn('[doc_01_chunk_0]', result['answer'])
+        self.assertIn('[doc_01_chunk_1]', result['answer'])
+        instruction = generate_content.call_args.kwargs['config']['system_instruction']
+        self.assertIn('doc_01_chunk_0', instruction)
+        self.assertIn('doc_01_chunk_1', instruction)
+
+    def test_gemini_controller_rejects_citations_outside_context(self):
+        response = SimpleNamespace(text='{"action":"answer","answer":"Refunds are available [not_in_context].","citations":["not_in_context"]}')
+        controller = GeminiController.__new__(GeminiController)
+        controller.client = SimpleNamespace(models=SimpleNamespace(
+            generate_content=Mock(return_value=response)
+        ))
+        controller.model_name = 'test-model'
+
+        result = run_agent('When can I get a refund?', controller, Retriever([CHUNK]))
+
+        self.assertEqual(result['status'], 'abstain')
+        self.assertEqual(result['citations'], [])
+
     def test_agent_searches_and_cites_actual_context(self):
         c = Controller([{'action': 'search', 'query': 'hoàn tiền'},
                         {'action': 'answer', 'answer': '7 ngày [c1]', 'citations': ['c1']}])

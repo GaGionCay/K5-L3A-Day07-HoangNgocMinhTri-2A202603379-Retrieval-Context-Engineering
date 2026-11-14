@@ -1,0 +1,138 @@
+[
+  {
+    "id": "doc_01_chunk_0",
+    "text": "[Page 1]\nSystem Architecture Guidelines 2025.\n\n[Page 2]\nCác nguyên tắc cốt lõi khi thiết kế kiến trúc Microservices trong hệ thống là gì?\nMỗi service phải độc lập về cơ sở dữ liệu, giao tiếp bất đồng bộ qua message broker và có khả năng tự phục hồi.\n\n[Page 3]\nTiếp tục chi tiết về Microservices và khả năng mở rộng hệ thống phân tán.\n\n[Page 4]\nSử dụng URI versioning theo định dạng /api/v1/resources và dùng danh từ số nhiều viết thường cách nhau bằng dấu gạch ngang.\n\n[Page 5]\nCơ chế Circuit Breaker",
+    "source_id": "doc_01",
+    "source": "system_architecture_guidelines.txt",
+    "page": 1,
+    "metadata": {
+      "category": "Architecture",
+      "department": "Engineering",
+      "year": 2025,
+      "total_pages": 11,
+      "description": "Tiêu chuẩn thiết kế kiến trúc hệ thống phân tán và microservices.",
+      "origin": "FPT University course reference materials & author-created project documentation",
+      "license": "Educational / Fair Use (Internal course evaluation)",
+      "access_date": "2026-10-15"
+    }
+  },
+  {
+    "id": "doc_01_chunk_1",
+    "text": "được cấu hình ngưỡng lỗi bao nhiêu phần trăm trước khi ngắt mạch?\nNgưỡng tỷ lệ lỗi mặc định là 50% trong cửa sổ trượt 20 request gần nhất.\n\n[Page 6]\nAPI Gateway áp dụng thuật toán Token Bucket giới hạn 120 request/phút cho mỗi user token hợp lệ.\n\n[Page 7]\nÁp dụng mô hình Cache-Aside kết hợp Redis Cluster cho dữ liệu đọc nhiều và đặt TTL ngẫu nhiên để tránh Cache Stampede.\n\n[Page 8]\nApache Kafka được sử dụng làm xương sống cho các luồng sự kiện có thông lượng cao và yêu cầu lưu trữ log bền vững.",
+    "source_id": "doc_01",
+    "source": "system_architecture_guidelines.txt",
+    "page": 1,
+    "metadata": {
+      "category": "Architecture",
+      "department": "Engineering",
+      "year": 2025,
+      "total_pages": 11,
+      "description": "Tiêu chuẩn thiết kế kiến trúc hệ thống phân tán và microservices.",
+      "origin": "FPT University course reference materials & author-created project documentation",
+      "license": "Educational / Fair Use (Internal course evaluation)",
+      "access_date": "2026-10-15"
+    }
+  },
+  {
+    "id": "doc_01_chunk_2",
+    "text": "[Page 9]\nMở rộng các luồng xử lý bất đồng bộ event-driven trong hệ thống lớn.\n\n[Page 10]\nKhi bảng dữ liệu giao dịch vượt quá 500GB hoặc 100 triệu bản ghi, cần xem xét phân mảnh ngang (horizontal sharding).\n\n[Page 11]\nMọi service triển khai mới bắt buộc tích hợp OpenTelemetry để xuất structured JSON logs, Prometheus metrics và distributed traces.",
+    "source_id": "doc_01",
+    "source": "system_architecture_guidelines.txt",
+    "page": 1,
+    "metadata": {
+      "category": "Architecture",
+      "department": "Engineering",
+      "year": 2025,
+      "total_pages": 11,
+      "description": "Tiêu chuẩn thiết kế kiến trúc hệ thống phân tán và microservices.",
+      "origin": "FPT University course reference materials & author-created project documentation",
+      "license": "Educational / Fair Use (Internal course evaluation)",
+      "access_date": "2026-10-15"
+    }
+  },
+  {
+    "id": "doc_02_chunk_0",
+    "text": "[Page 1]\nSecurity and Compliance Policy 2026.\n\n[Page 2]\nXác thực đa yếu tố (MFA) bằng ứng dụng Authenticator hoặc khóa vật lý FIDO2 là bắt buộc 100% đối với mọi tài khoản truy cập hạ tầng.\n\n[Page 3]\nAccess Token có thời hạn 15 phút, Refresh Token có thời hạn 7 ngày và bắt buộc xoay vòng (rotation) khi sử dụng.\n\n[Page 4]\nDữ liệu lưu trữ bắt buộc mã hóa AES-256; dữ liệu truyền tải qua mạng công cộng bắt buộc sử dụng TLS 1.3.\n\n[Page 5]\nÁp dụng nguyên tắc đặc quyền tối thiểu (Least Privilege), quyền",
+    "source_id": "doc_02",
+    "source": "security_and_compliance_policy.txt",
+    "page": 1,
+    "metadata": {
+      "category": "Security",
+      "department": "InfoSec",
+      "year": 2026,
+      "total_pages": 8,
+      "description": "Quy định bảo mật dữ liệu, quản lý định danh JWT và kiểm soát truy cập.",
+      "origin": "Author-created / FPT University academic coursework",
+      "license": "Educational / Fair Use (Internal Course Evaluation)",
+      "access_date": "2026-10-15"
+    }
+  },
+  {
+    "id": "doc_02_chunk_1",
+    "text": "truy cập được cấp theo nhóm vai trò thay vì từng cá nhân.\n\n[Page 6]\nTất cả API key, database credentials và khóa mã hóa trên Production phải được xoay vòng tự động mỗi 90 ngày.\n\n[Page 7]\nQuy định bổ sung về kiểm soát an toàn thông tin và tuân thủ tiêu chuẩn bảo mật.\n\n[Page 8]\nMọi sự cố rò rỉ dữ liệu mức độ P1 phải được báo cáo cho đội ngũ InfoSec trong vòng 30 phút kể từ khi phát hiện.",
+    "source_id": "doc_02",
+    "source": "security_and_compliance_policy.txt",
+    "page": 1,
+    "metadata": {
+      "category": "Security",
+      "department": "InfoSec",
+      "year": 2026,
+      "total_pages": 8,
+      "description": "Quy định bảo mật dữ liệu, quản lý định danh JWT và kiểm soát truy cập.",
+      "origin": "Author-created / FPT University academic coursework",
+      "license": "Educational / Fair Use (Internal Course Evaluation)",
+      "access_date": "2026-10-15"
+    }
+  },
+  {
+    "id": "doc_03_chunk_0",
+    "text": "[Page 1]\nHR and Onboarding Handbook 2026.\n\n[Page 2]\nTrong tuần đầu tiên, nhân viên mới phải hoàn thành khóa đào tạo An toàn thông tin cơ bản và Văn hóa doanh nghiệp.\n\n[Page 3]\nThời gian thử việc tiêu chuẩn là 60 ngày đối với vị trí chuyên môn kỹ thuật và hưởng 85% mức lương chính thức.\n\n[Page 4]\nChính sách và quy định chung dành cho nhân sự khi gia nhập tổ chức.\n\n[Page 5]\nNhân viên chính thức có 14 ngày phép năm, tối đa 5 ngày phép chưa dùng được chuyển sang quý I năm kế tiếp.\n\n[Page 6]\nChính sá",
+    "source_id": "doc_03",
+    "source": "hr_and_onboarding_handbook.txt",
+    "page": 1,
+    "metadata": {
+      "category": "HR",
+      "department": "PeopleOps",
+      "year": 2026,
+      "total_pages": 11,
+      "description": "Sổ tay nhân sự, quy trình onboarding và chính sách phúc lợi nội bộ.",
+      "origin": "FPT University coursework and author-created project documentation",
+      "license": "Educational / Fair Use (Internal course evaluation)",
+      "access_date": "2026-10-15"
+    }
+  },
+  {
+    "id": "doc_03_chunk_1",
+    "text": "ch phúc lợi, bảo hiểm sức khỏe và các chương trình hỗ trợ nhân viên.\n\n[Page 7]\nMô hình Hybrid yêu cầu nhân viên làm việc tại văn phòng tối thiểu 3 ngày/tuần vào thứ Ba, thứ Tư và thứ Năm.\n\n[Page 8]\nQuy định về thời gian làm việc, chấm công và các tiêu chuẩn ứng xử tại nơi làm việc.\n\n[Page 9]\nĐánh giá hiệu suất chính thức được tổ chức 2 lần mỗi năm vào tháng 6 (Mid-year) và tháng 12 (Year-end).\n\n[Page 10]\nMỗi nhân viên chính thức được cấp ngân sách đào tạo 10.000.000 VNĐ/năm cho các khóa học và c",
+    "source_id": "doc_03",
+    "source": "hr_and_onboarding_handbook.txt",
+    "page": 1,
+    "metadata": {
+      "category": "HR",
+      "department": "PeopleOps",
+      "year": 2026,
+      "total_pages": 11,
+      "description": "Sổ tay nhân sự, quy trình onboarding và chính sách phúc lợi nội bộ.",
+      "origin": "FPT University coursework and author-created project documentation",
+      "license": "Educational / Fair Use (Internal course evaluation)",
+      "access_date": "2026-10-15"
+    }
+  },
+  {
+    "id": "doc_03_chunk_2",
+    "text": "hứng chỉ liên quan đến công việc.\n\n[Page 11]\nQuy trình bàn giao công việc, thủ tục nghỉ việc và các điều khoản cam kết khi rời công ty.",
+    "source_id": "doc_03",
+    "source": "hr_and_onboarding_handbook.txt",
+    "page": 1,
+    "metadata": {
+      "category": "HR",
+      "department": "PeopleOps",
+      "year": 2026,
+      "total_pages": 11,
+      "description": "Sổ tay nhân sự, quy trình onboarding và chính sách phúc lợi nội bộ.",
+      "origin": "FPT University coursework and author-created project documentation",
+      "license": "Educational / Fair Use (Internal course evaluation)",
+      "access_date": "2026-10-15"
+    }
+  }
+]

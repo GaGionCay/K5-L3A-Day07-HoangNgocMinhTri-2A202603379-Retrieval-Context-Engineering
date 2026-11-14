@@ -1,0 +1,15 @@
+[
+  {
+    "id": "q1",
+    "split": "dev",
+    "question": "Tiêu chuẩn thiết kế kiến trúc hệ thống phân tán là gì?",
+    "expected_answer": "Xem chi tiết trong tài liệu hệ thống.",
+    "gold": [
+      {
+        "source_id": "doc_01",
+        "page": 1,
+        "evidence": "Tiêu chuẩn thiết kế kiến trúc hệ thống phân tán và microservices."
+      }
+    ]
+  }
+]
