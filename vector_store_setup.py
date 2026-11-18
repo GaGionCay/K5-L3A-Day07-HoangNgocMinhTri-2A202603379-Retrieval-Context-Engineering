@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 import chromadb
+from chromadb.utils import embedding_functions
 
 def setup_vector_store():
     # 1. Đường dẫn tới file chunks đã chuẩn hóa ở Phase 1
@@ -27,8 +28,17 @@ def setup_vector_store():
     except Exception:
         pass
 
-    # Tạo collection mới
-    collection = client.create_collection(name=collection_name)
+    # [TASK 3.2] Cố định Dense Embedding Model và cấu hình collection tường minh
+    embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
+        model_name="all-MiniLM-L6-v2"
+    )
+
+    # Tạo collection mới với embedding function và metadata cosine similarity
+    collection = client.create_collection(
+        name=collection_name,
+        embedding_function=embedding_fn,
+        metadata={"hnsw:space": "cosine"}
+    )
 
     # 3. Trích xuất các trường dữ liệu theo đúng chuẩn schema để đưa vào ChromaDB
     ids = [chunk["id"] for chunk in chunks]
@@ -42,14 +52,14 @@ def setup_vector_store():
         for chunk in chunks
     ]
 
-    # 4. Thêm dữ liệu vào Vector Store (ChromaDB tự động embedding bằng mô hình mặc định)
+    # 4. Thêm dữ liệu vào Vector Store (ChromaDB sẽ tự động embedding thông qua model đã ghim ở trên)
     collection.add(
         ids=ids,
         documents=documents,
         metadatas=metadatas
     )
 
-    print(f"Hoàn tất! Đã nạp thành công {len(chunks)} chunks vào ChromaDB tại thư mục: {db_path.absolute()}")
+    print(f"Hoàn tất! Đã nạp thành công {len(chunks)} chunks vào ChromaDB với model 'all-MiniLM-L6-v2' tại thư mục: {db_path.absolute()}")
 
 if __name__ == "__main__":
     setup_vector_store()

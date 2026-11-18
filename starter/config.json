@@ -1,0 +1,14 @@
+{
+  "production_config": {
+    "retriever_method": "hybrid",
+    "top_k": 4,
+    "budget": 3000,
+    "max_searches": 4,
+    "rrf_k": 60,
+    "model_name": "gemini-3.5-flash",
+    "max_retries": 5,
+    "base_delay_seconds": 2.0
+  },
+  "rationale": "Frozen based on Task 4.1 Dev tuning matrix results: Hybrid RRF achieves perfect 100% Hit@k across all k in [2, 3, 4], perfect 1.0000 Recall@4 (all multi-hop evidence retrieved), and highest MRR while fitting comfortably within the 3000 character budget.",
+  "timestamp": "2026-11-18T11:43:00+07:00"
+}

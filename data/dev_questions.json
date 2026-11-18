@@ -145,5 +145,37 @@
     "hop_type": "none",
     "gold_chunk_ids": [],
     "gold_answer": "Không đủ bằng chứng để trả lời."
+  },
+  {
+    "id": "dev_13",
+    "question": "Quy định về việc đặt tên nhánh (branch naming convention) trong quy trình quản lý mã nguồn Git được định nghĩa như thế nào?",
+    "type": "answerable",
+    "hop_type": "single-hop",
+    "gold_chunk_ids": [
+      "doc_02_chunk_1"
+    ],
+    "gold_answer": "Quy định đặt tên nhánh Git bắt buộc phải tuân theo định dạng feature/, bugfix/, hotfix/ kèm theo mã ticket JIRA tương ứng."
+  },
+  {
+    "id": "dev_14",
+    "question": "Chính sách bảo mật yêu cầu thời gian hiệu lực của Refresh Token và tần suất tự động xoay vòng các khóa mã hóa trên Production là gì?",
+    "type": "answerable",
+    "hop_type": "multi-hop",
+    "gold_chunk_ids": [
+      "doc_02_chunk_0",
+      "doc_02_chunk_1"
+    ],
+    "gold_answer": "Refresh Token có thời hạn 7 ngày và bắt buộc xoay vòng khi sử dụng, đồng thời tất cả khóa mã hóa, API key và database credentials trên Production phải được xoay vòng tự động mỗi 90 ngày."
+  },
+  {
+    "id": "dev_15",
+    "question": "Mức lương thử việc được quy định ra sao và trong tuần đầu tiên nhân viên mới phải hoàn thành những khóa đào tạo bắt buộc nào?",
+    "type": "answerable",
+    "hop_type": "multi-hop",
+    "gold_chunk_ids": [
+      "doc_03_chunk_0",
+      "doc_03_chunk_1"
+    ],
+    "gold_answer": "Nhân viên vị trí chuyên môn kỹ thuật hưởng 85% mức lương chính thức trong 60 ngày thử việc và phải hoàn thành hai khóa đào tạo bắt buộc trong tuần đầu tiên gồm An toàn thông tin cơ bản và Văn hóa doanh nghiệp."
   }
 ]

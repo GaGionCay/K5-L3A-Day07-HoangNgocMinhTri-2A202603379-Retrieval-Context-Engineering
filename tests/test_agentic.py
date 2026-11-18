@@ -107,4 +107,23 @@ class AgentTests(unittest.TestCase):
         with self.assertRaises(ConnectionError):
             run_agent('q', Controller([{'action':'search','query':'q'}]), Broken())
 
+    def test_gemini_controller_retry_backoff(self):
+        calls = []
+        def flaky_generate(*args, **kwargs):
+            calls.append(len(calls))
+            if len(calls) < 3:
+                raise Exception("429 RESOURCE_EXHAUSTED quota exceeded")
+            return SimpleNamespace(text='{"action":"answer","answer":"OK [c1]","citations":["c1"]}')
+
+        controller = GeminiController.__new__(GeminiController)
+        controller.client = SimpleNamespace(models=SimpleNamespace(generate_content=flaky_generate))
+        controller.model_name = 'test-model'
+        controller.max_retries = 3
+        controller.base_delay = 0.01  # Fast test delay
+
+        history = [{'tool': 'search', 'context': '[c1 | test.txt | page 1]\nOK', 'context_ids': ['c1']}]
+        res = controller.decide("What?", history)
+        self.assertEqual(res['action'], 'answer')
+        self.assertEqual(len(calls), 3)
+
 if __name__ == '__main__': unittest.main()

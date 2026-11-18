@@ -1,13 +1,21 @@
 """Agent loop optimized with 3 Retrieval methods (Dense, Sparse, Hybrid/RRF) and Fixed Context Budget."""
 from typing import Any, Protocol
 import json
+import logging
+import random
 import re
+import time
+import unicodedata
 from pathlib import Path
 import chromadb
 from google import genai
+from google.genai.errors import APIError
+from rank_bm25 import BM25Okapi
 from .baseline import pack_context
 import math
 from collections import Counter
+
+logger = logging.getLogger(__name__)
 
 
 class Controller(Protocol):
@@ -33,7 +41,7 @@ class HybridRetriever:
             self.collection = None
 
     def _sparse_search(self, query: str, top_k: int) -> list[dict[str, Any]]:
-        """Sparse Retrieval dự phòng bằng từ khóa trên collection."""
+        """Sparse Retrieval sử dụng BM25 chuẩn kết hợp chuẩn hóa Unicode NFC."""
         if not self.collection:
             return []
         all_data = self.collection.get()
@@ -44,18 +52,36 @@ class HybridRetriever:
         docs = all_data["documents"]
         metas = all_data["metadatas"]
         
-        query_tokens = set(query.lower().split())
+        # Chuẩn hóa Unicode NFC cho toàn bộ corpus và tokenize thành danh sách từ
+        normalized_docs = [unicodedata.normalize('NFC', doc) for doc in docs]
+        tokenized_corpus = [doc.lower().split() for doc in normalized_docs]
+        
+        # Khởi tạo BM25Okapi với corpus đã tokenize
+        bm25 = BM25Okapi(tokenized_corpus)
+        
+        # Chuẩn hóa Unicode NFC cho query và tách token
+        normalized_query = unicodedata.normalize('NFC', query)
+        query_tokens = normalized_query.lower().split()
+        if not query_tokens:
+            return []
+            
+        # Lấy điểm số BM25 cho tất cả tài liệu
+        scores = bm25.get_scores(query_tokens)
+        
         scored = []
-        for cid, doc, meta in zip(ids, docs, metas):
-            doc_tokens = doc.lower().split()
-            doc_counter = Counter(doc_tokens)
-            score = sum(doc_counter[token] for token in query_tokens)
+        for cid, doc, meta, score in zip(ids, docs, metas, scores):
             if score > 0:
                 scored.append({
-                    "id": cid, "text": doc, "source_id": meta.get("source_id"),
-                    "source": meta.get("source"), "page": meta.get("page", 1),
-                    "metadata": meta, "score": float(score)
+                    "id": cid, 
+                    "text": doc, 
+                    "source_id": meta.get("source_id"),
+                    "source": meta.get("source"), 
+                    "page": meta.get("page", 1),
+                    "metadata": meta, 
+                    "score": float(score)
                 })
+                
+        # Sắp xếp kết quả theo điểm BM25 giảm dần và cắt lấy top_k
         scored.sort(key=lambda x: x["score"], reverse=True)
         return scored[:top_k]
 
@@ -91,38 +117,105 @@ class HybridRetriever:
             return self._dense_search(query, filters=filters, top_k=top_k)
 
         else:
-            # Method 3: Hybrid Retrieval kết hợp Sparse + Dense dùng RRF (Tránh đệ quy vô hạn)
+            # Method 3: Hybrid Retrieval kết hợp Sparse + Dense dùng RRF (Reciprocal Rank Fusion, K=60)
             sparse_res = self._sparse_search(query, top_k=top_k)
             dense_res = self._dense_search(query, filters=filters, top_k=top_k)
-            
-            rrf_scores = {}
-            chunk_map = {}
-            k_constant = 60  # Hằng số chuẩn cho RRF
 
-            for rank, chunk in enumerate(sparse_res):
-                cid = chunk["id"]
-                chunk_map[cid] = chunk
-                rrf_scores[cid] = rrf_scores.get(cid, 0.0) + 1.0 / (k_constant + rank + 1)
+            k_constant = 60  # Hằng số chuẩn hóa RRF K = 60
+            rrf_scores: dict[str, float] = {}
+            chunk_map: dict[str, dict[str, Any]] = {}
+            rank_details: dict[str, dict[str, Any]] = {}
 
-            for rank, chunk in enumerate(dense_res):
+            # Ghi nhận thứ hạng sparse (1-based rank)
+            for rank_0, chunk in enumerate(sparse_res):
                 cid = chunk["id"]
+                r = rank_0 + 1
                 chunk_map[cid] = chunk
-                rrf_scores[cid] = rrf_scores.get(cid, 0.0) + 1.0 / (k_constant + rank + 1)
+                if cid not in rank_details:
+                    rank_details[cid] = {"sparse_rank": None, "dense_rank": None, "sparse_score": None, "dense_score": None}
+                rank_details[cid]["sparse_rank"] = r
+                rank_details[cid]["sparse_score"] = chunk.get("score")
+                rrf_scores[cid] = rrf_scores.get(cid, 0.0) + (1.0 / (k_constant + r))
+
+            # Ghi nhận thứ hạng dense (1-based rank)
+            for rank_0, chunk in enumerate(dense_res):
+                cid = chunk["id"]
+                r = rank_0 + 1
+                chunk_map[cid] = chunk
+                if cid not in rank_details:
+                    rank_details[cid] = {"sparse_rank": None, "dense_rank": None, "sparse_score": None, "dense_score": None}
+                rank_details[cid]["dense_rank"] = r
+                rank_details[cid]["dense_score"] = chunk.get("score")
+                rrf_scores[cid] = rrf_scores.get(cid, 0.0) + (1.0 / (k_constant + r))
 
             sorted_cids = sorted(rrf_scores.keys(), key=lambda x: rrf_scores[x], reverse=True)
             hybrid_results = []
             for cid in sorted_cids[:top_k]:
-                item = chunk_map[cid]
+                item = dict(chunk_map[cid])
                 item["score"] = rrf_scores[cid]
+                item["sparse_rank"] = rank_details[cid]["sparse_rank"]
+                item["dense_rank"] = rank_details[cid]["dense_rank"]
+                item["rrf_details"] = {
+                    "k": k_constant,
+                    "sparse_rank": rank_details[cid]["sparse_rank"],
+                    "dense_rank": rank_details[cid]["dense_rank"],
+                    "sparse_score": rank_details[cid]["sparse_score"],
+                    "dense_score": rank_details[cid]["dense_score"],
+                    "rrf_score": rrf_scores[cid],
+                }
                 hybrid_results.append(item)
+                logger.debug(
+                    "RRF candidate [%s]: sparse_rank=%s, dense_rank=%s, score=%.6f",
+                    cid,
+                    rank_details[cid]["sparse_rank"],
+                    rank_details[cid]["dense_rank"],
+                    rrf_scores[cid],
+                )
             return hybrid_results
 
 
 class GeminiController:
-    """Adapter thực tế dùng Google Gemini điều khiển ReAct agent."""
-    def __init__(self, model_name: str = "gemini-3.5-flash"):
+    """Adapter thực tế dùng Google Gemini điều khiển ReAct agent có retry backoff."""
+    max_retries: int = 5
+    base_delay: float = 2.0
+
+    def __init__(self, model_name: str = "gemini-3.5-flash", max_retries: int = 5, base_delay: float = 2.0):
         self.client = genai.Client()
         self.model_name = model_name
+        self.max_retries = max_retries
+        self.base_delay = base_delay
+
+    def _call_gemini_with_retry(self, prompt: str, system_instruction: str) -> Any:
+        """Thực thi generate_content với cơ chế exponential backoff và jitter cho lỗi 429/503."""
+        max_retries = getattr(self, "max_retries", 5)
+        base_delay = getattr(self, "base_delay", 2.0)
+        for attempt in range(max_retries + 1):
+            try:
+                response = self.client.models.generate_content(
+                    model=self.model_name,
+                    contents=prompt,
+                    config={
+                        'system_instruction': system_instruction,
+                        'temperature': 0.1,
+                        'response_mime_type': 'application/json'
+                    }
+                )
+                return response
+            except Exception as e:
+                err_str = str(e).lower()
+                is_rate_limit = "429" in err_str or "resource_exhausted" in err_str or "quota" in err_str
+                is_server_overload = "503" in err_str or "unavailable" in err_str
+                
+                if (is_rate_limit or is_server_overload) and attempt < max_retries:
+                    # Exponential backoff: base_delay * (2 ** attempt) + full jitter
+                    sleep_time = (base_delay * (2 ** attempt)) + random.uniform(0.5, 2.0)
+                    logger.warning(
+                        "Rate-limit / Quota hit (attempt %d/%d). Retrying in %.2f seconds... Error: %s",
+                        attempt + 1, max_retries, sleep_time, str(e)
+                    )
+                    time.sleep(sleep_time)
+                else:
+                    raise e
 
     def decide(self, question: str, history: list[dict[str, Any]]) -> dict[str, Any]:
         if not history:
@@ -167,15 +260,7 @@ class GeminiController:
 
         prompt = f"Question: {question}\n\n{history_str}\nProvide the final answer in JSON format:"
 
-        response = self.client.models.generate_content(
-            model=self.model_name,
-            contents=prompt,
-            config={
-                'system_instruction': system_instruction,
-                'temperature': 0.1,
-                'response_mime_type': 'application/json'
-            }
-        )
+        response = self._call_gemini_with_retry(prompt, system_instruction)
         text = response.text.strip()
         
         parsed = json.loads(text)
@@ -184,8 +269,16 @@ class GeminiController:
 
         answer = parsed["answer"]
         cited_ids = re.findall(r"\[([^\[\]]+)\]", answer)
+        
+        # Nếu mô hình trích dẫn chunk ngoài context, trả về action "answer" 
+        # nhưng làm rỗng citations để run_agent tự động đánh giá là invalid và abstain an toàn
         if any(chunk_id not in context_ids for chunk_id in cited_ids):
-            raise ValueError("Gemini response cited a chunk outside the retrieved context")
+            return {
+                "action": "answer",
+                "answer": answer,
+                "citations": []  # Gửi danh sách rỗng để kích hoạt điều kiện invalid citation trong run_agent
+            }
+            
         citations = list(dict.fromkeys(cited_ids))
         return {"action": "answer", "answer": answer, "citations": citations}
 
